@@ -10,7 +10,7 @@ REM setting info box
 @ECHO.
 
 REM setting PHP version, Git
-SET GIT="https://github.com/viest/php-ext-excel-export.git"
+SET GIT="git@github.com:sirhvd/php-ext-xlswriter-s.git"
 SET PHPVERSION=7.1.3
 SET PHPSDK=2.2.0
 SET VC=VC14
