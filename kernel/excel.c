@@ -97,6 +97,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(xls_data_arginfo, 0, 0, 1)
                 ZEND_ARG_INFO(0, data)
+				ZEND_ARG_INFO(0, format_handle)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(xls_output_arginfo, 0, 0, 0)
@@ -487,18 +488,18 @@ PHP_METHOD(vtiful_xls, constMemory)
 /* }}} */
 
 
-/** {{{ \Vtiful\Kernel\Excel::header(array $header)
+/** {{{ \Vtiful\Kernel\Excel::header(array $header[, array $format_arr])
  */
 PHP_METHOD(vtiful_xls, header)
 {
     zend_long header_l_key;
-    lxw_format *format_handle = NULL;
-    zval *header = NULL, *header_value = NULL, *zv_format_handle = NULL;;
+    zval *format_handle = NULL;
+    zval *header = NULL, *header_value = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
             Z_PARAM_ARRAY(header)
             Z_PARAM_OPTIONAL
-            Z_PARAM_RESOURCE(zv_format_handle)
+            Z_PARAM_ARRAY(format_handle)
     ZEND_PARSE_PARAMETERS_END();
 
     ZVAL_COPY(return_value, getThis());
@@ -507,14 +508,24 @@ PHP_METHOD(vtiful_xls, header)
 
     WORKBOOK_NOT_INITIALIZED(obj);
 
-    if (zv_format_handle == NULL) {
-        format_handle = obj->format_ptr.format;
-    } else {
-        format_handle = zval_get_format(zv_format_handle);
+    zval *getRowFormat = NULL, *getColFormat = NULL;
+    if (format_handle != NULL) {
+        getRowFormat = zend_hash_index_find(Z_ARRVAL_P(format_handle), 0);
     }
+    
+    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(header), header_l_key, header_value)  
 
-    ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARRVAL_P(header), header_l_key, header_value)
-         type_writer(header_value, 0, header_l_key, &obj->write_ptr, NULL, format_handle);
+        if (getRowFormat != NULL) {
+            getColFormat = zend_hash_index_find(Z_ARRVAL_P(getRowFormat), header_l_key);
+        }
+
+        if (getColFormat != NULL) {
+            type_writer(header_value, 0, header_l_key, &obj->write_ptr, NULL, zval_get_format(getColFormat));
+            continue;
+        }
+
+        type_writer(header_value, 0, header_l_key, &obj->write_ptr, NULL, obj->format_ptr.format);
+
     ZEND_HASH_FOREACH_END();
 
     // When inserting the header for the first time, the row number is incremented by one,
@@ -525,14 +536,17 @@ PHP_METHOD(vtiful_xls, header)
 }
 /* }}} */
 
-/** {{{ \Vtiful\Kernel\Excel::data(array $data)
+/** {{{ \Vtiful\Kernel\Excel::data(array $data[, array $format_arr])
  */
 PHP_METHOD(vtiful_xls, data)
 {
     zval *data = NULL, *data_r_value = NULL;
+	zval *format_handle = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
             Z_PARAM_ARRAY(data)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_ARRAY(format_handle)
     ZEND_PARSE_PARAMETERS_END();
 
     ZVAL_COPY(return_value, getThis());
@@ -543,8 +557,27 @@ PHP_METHOD(vtiful_xls, data)
 
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(data), data_r_value)
         if(Z_TYPE_P(data_r_value) == IS_ARRAY) {
+        	
+            zval *getRowFormat = NULL, *getColFormat = NULL;
+            zend_long currentRow = SHEET_CURRENT_LINE(obj);
+            if (format_handle != NULL) {
+                getRowFormat = zend_hash_index_find(Z_ARRVAL_P(format_handle), currentRow);
+            }
+
             ZEND_HASH_FOREACH_BUCKET(Z_ARRVAL_P(data_r_value), Bucket *bucket)
-                type_writer(&bucket->val, SHEET_CURRENT_LINE(obj), bucket->h, &obj->write_ptr, NULL, obj->format_ptr.format);
+                zend_long currentCol = bucket->h;
+
+                if (getRowFormat != NULL) {
+                    getColFormat = zend_hash_index_find(Z_ARRVAL_P(getRowFormat), currentCol);
+                }
+
+                if (getColFormat != NULL) {
+                    type_writer(&bucket->val, currentRow, currentCol, &obj->write_ptr, NULL, zval_get_format(getColFormat));
+                    continue;
+                }
+
+                type_writer(&bucket->val, currentRow, currentCol, &obj->write_ptr, NULL, obj->format_ptr.format);
+
             ZEND_HASH_FOREACH_END();
 
             SHEET_LINE_ADD(obj)

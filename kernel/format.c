@@ -107,6 +107,9 @@ ZEND_BEGIN_ARG_INFO_EX(format_font_arginfo, 0, 0, 1)
                 ZEND_ARG_INFO(0, font)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(format_merge_arginfo, 0, 0, 1)
+                ZEND_ARG_INFO(0, format_handle)
+ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(format_to_resource_arginfo, 0, 0, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
@@ -376,6 +379,68 @@ PHP_METHOD(vtiful_format, border)
 }
 /* }}} */
 
+/** {{{ \Vtiful\Kernel\Format::mergeFormat(resource $format)
+ */
+PHP_METHOD(vtiful_format, mergeFormat)
+{
+    zval *format_handle = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+            Z_PARAM_RESOURCE(format_handle)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ZVAL_COPY(return_value, getThis());
+
+    format_object *obj = Z_FORMAT_P(getThis());
+
+    ZEND_ASSERT(Z_TYPE_P(format_handle) == IS_RESOURCE); /* just a check to be sure */
+
+    lxw_format *obj2 = zval_get_format(format_handle);
+
+    if (obj->ptr.format->text_wrap == LXW_FALSE && obj2->text_wrap != LXW_FALSE) {
+        format_set_text_wrap(obj->ptr.format);
+    }
+
+    if (obj->ptr.format->bold == LXW_FALSE && obj2->bold != LXW_FALSE) {
+        format_set_bold(obj->ptr.format);
+    }
+
+    if (obj->ptr.format->italic == LXW_FALSE && obj2->italic != LXW_FALSE) {
+        format_set_italic(obj->ptr.format);
+    }
+
+    if (obj->ptr.format->underline == LXW_FALSE && obj2->underline != LXW_FALSE) {
+        format_set_underline(obj->ptr.format, obj2->underline);
+    }
+
+    if (obj->ptr.format->text_h_align == LXW_ALIGN_NONE && obj2->text_h_align != LXW_ALIGN_NONE) {
+        format_set_align(obj->ptr.format, obj2->text_h_align);
+    }
+
+    if (obj->ptr.format->text_v_align == LXW_ALIGN_NONE && obj2->text_v_align != LXW_ALIGN_NONE) {
+        format_set_align(obj->ptr.format, obj2->text_v_align);
+    }
+
+    if (obj->ptr.format->font_color == LXW_COLOR_UNSET && obj2->font_color != LXW_COLOR_UNSET) {
+        format_set_font_color(obj->ptr.format, obj2->font_color);
+    }
+
+    if (obj->ptr.format->bg_color == LXW_COLOR_UNSET && obj2->bg_color != LXW_COLOR_UNSET) {
+        format_set_bg_color(obj->ptr.format, obj2->bg_color);
+    }
+
+    if (obj->ptr.format->top == LXW_BORDER_NONE && obj2->top != LXW_BORDER_NONE) {
+        format_set_border(obj->ptr.format, obj2->top);
+    }
+
+    if (obj->ptr.format->bottom_color == LXW_COLOR_UNSET && obj2->bottom_color != LXW_COLOR_UNSET) {
+        format_set_border_color(obj->ptr.format, obj2->bottom_color);
+    }
+
+    if (strlen(obj->ptr.format->num_format) == 0 && strlen(obj2->num_format) > 0) {
+        format_set_num_format(obj->ptr.format, obj2->num_format);
+    }
+}
 /** {{{ \Vtiful\Kernel\Format::toResource()
  */
 PHP_METHOD(vtiful_format, toResource)
@@ -403,6 +468,7 @@ zend_function_entry format_methods[] = {
         PHP_ME(vtiful_format, strikeout,     format_strikeout_arginfo,   ZEND_ACC_PUBLIC)
         PHP_ME(vtiful_format, underline,     format_underline_arginfo,   ZEND_ACC_PUBLIC)
         PHP_ME(vtiful_format, unlocked,      format_unlocked_arginfo,    ZEND_ACC_PUBLIC)
+        PHP_ME(vtiful_format, mergeFormat,   format_merge_arginfo,       ZEND_ACC_PUBLIC)
         PHP_ME(vtiful_format, toResource,    format_to_resource_arginfo, ZEND_ACC_PUBLIC)
         PHP_ME(vtiful_format, background,    format_background_arginfo,  ZEND_ACC_PUBLIC)
         PHP_FE_END
